@@ -261,14 +261,16 @@ function createHotspots() {
     people.forEach((s, i) => {
         const el = document.createElement('div');
         el.className = 'hotspot';
-        const d = s.r * 2;
-        el.style.left = (s.cx - s.r) + 'px';
-        el.style.top = (s.cy - s.r) + 'px';
-        el.style.width = d + 'px';
-        el.style.height = d + 'px';
+        // 얼굴을 감싸는 타원 (rx·ry 없으면 원 r)
+        const rx = s.rx || s.r, ry = s.ry || s.r;
+        el.style.left = (s.cx - rx) + 'px';
+        el.style.top = (s.cy - ry) + 'px';
+        el.style.width = (rx * 2) + 'px';
+        el.style.height = (ry * 2) + 'px';
+        if (s.rot) el.style.rotate = s.rot + 'deg';
         el.dataset.index = i;
         // 작은 원(뒤쪽 무리 얼굴)이 큰 원에 가려 눌리지 않도록 작을수록 위에 놓음
-        el.style.zIndex = String(1000 - Math.round(s.r));
+        el.style.zIndex = String(1000 - Math.round(Math.sqrt(rx * ry)));
 
         el.addEventListener('mouseenter', onHotspotEnter);
         el.addEventListener('mouseleave', onHotspotLeave);
