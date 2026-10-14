@@ -209,7 +209,9 @@ const gameExitBtn = document.getElementById('game-exit');
 function setModeUI(mode) {
     // mode: 'game' | 'desc'
     // 게임 모드: 크이 설명 버튼만 노출 / 설명 모드: 크이 게임 버튼만 노출
+    document.body.classList.toggle('game-on', mode === 'game');
     if (mode === 'game') {
+        closeList();
         modeGameBtn.classList.add('hidden');     // 현재 게임모드 → 게임버튼 숨김
         modeDescBtn.classList.remove('hidden'); // 설명버튼 표시
     } else {
@@ -223,8 +225,10 @@ let _initialized = false;
 function _init() {
     if (_initialized) return;
     _initialized = true;
-    imgWidth = photo.naturalWidth;
-    imgHeight = photo.naturalHeight;
+    imgWidth = photo.naturalWidth || 3820;
+    imgHeight = photo.naturalHeight || 2964;
+    const ld = document.getElementById('loading');
+    if (ld) ld.classList.add('hidden');
     initializeView();
     createHotspots();
     setModeUI('desc');  // 설명 모드로 시작
@@ -247,12 +251,25 @@ function initializeView() {
     scale = Math.min(vw / f.w, vh / f.h);
     translateX = (vw - f.w * scale) / 2 - f.x * scale;
     translateY = (vh - f.h * scale) / 2 - f.y * scale;
+    // 세로로 긴 화면에서는 얼굴이 너무 작으므로 인물들이 모인 가운데 띠를 크게 보여 줌 (좌우는 끌어서 보기)
+    if (vh > vw * 1.15) {
+        const band = { cx: 1930, cy: 1660, w: 1900 };
+        scale = Math.min(vw / band.w * 1.0, vh / 1300);
+        translateX = vw / 2 - band.cx * scale;
+        translateY = vh / 2 - band.cy * scale;
+    }
 
     applyTransform();
 }
 
 function applyTransform() {
+    const vw = viewport.clientWidth, vh = viewport.clientHeight;
+    const w = imgWidth * scale, h = imgHeight * scale;
+    translateX = Math.min(vw * 0.6, Math.max(vw * 0.4 - w, translateX));
+    translateY = Math.min(vh * 0.6, Math.max(vh * 0.4 - h, translateY));
     canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+    // 테두리 굵기가 확대 배율과 상관없이 화면에서 일정하게 보이도록
+    canvas.style.setProperty('--inv', (1 / scale).toFixed(3));
 }
 
 // ===== 핫스팟 생성 (픽셀 좌표 기반) =====
@@ -269,6 +286,7 @@ function createHotspots() {
         el.style.height = (ry * 2) + 'px';
         if (s.rot) el.style.rotate = s.rot + 'deg';
         el.dataset.index = i;
+        if (s.oldView) el.classList.add('old-view');
         // 작은 원(뒤쪽 무리 얼굴)이 큰 원에 가려 눌리지 않도록 작을수록 위에 놓음
         el.style.zIndex = String(1000 - Math.round(Math.sqrt(rx * ry)));
 
@@ -338,61 +356,82 @@ function onHotspotClick(e) {
         return;
     }
 
+    openInfo(idx);
+}
+
+// 인물 정보 열기 (클릭·탭·목록 공통)
+function openInfo(idx) {
     const s = people[idx];
+    const el = hotspotsContainer.children[idx];
     if (activeHotspot) activeHotspot.classList.remove('active');
-    activeHotspot = e.target;
+    activeHotspot = el;
     activeHotspot.classList.add('active');
+    tooltip.classList.add('hidden');
 
     infoName.textContent = `${s.name}   ${s.nameEn}`;
     infoYears.textContent = s.years;
     infoDesc.textContent = s.desc;
+    infoDesc.scrollTop = 0;
 
     infoPanel.classList.remove('hidden');
     helpHint.style.opacity = '0';
 
-    // TTS 읽기
+    // 고른 얼굴이 정보 패널이나 버튼에 가려지면 보이는 곳으로 옮김
+    requestAnimationFrame(() => ensureVisible(idx));
+
     ttsSpeak(s);
 }
 
-function onTouchHotspot(e) {
-    e.stopPropagation(); // prevent pan
-    if (gameModeActive) return;  // 게임 모드에서는 툴팁 비활성화 (클릭 이벤트가 처리)
-    const target = e.currentTarget;
-    const idx = parseInt(target.dataset.index);
+// 얼굴이 화면의 빈 곳(머리글 아래 ~ 정보 패널 위)에 오도록 이동
+function ensureVisible(idx, force) {
     const s = people[idx];
+    const vr = viewport.getBoundingClientRect();
+    const top = (document.getElementById('app-header').getBoundingClientRect().bottom || 0) + 10;
+    const panelTop = infoPanel.classList.contains('hidden') ? window.innerHeight : infoPanel.getBoundingClientRect().top;
+    const bottom = Math.min(window.innerHeight, panelTop) - 10;
+    const fx = vr.left + translateX + s.cx * scale;
+    const fy = vr.top + translateY + s.cy * scale;
+    const ry = (s.ry || s.r) * scale;
+    const margin = 70;
+    if (!force && fx > margin && fx < window.innerWidth - margin && fy - ry > top && fy + ry < bottom) return;
+    const targetX = window.innerWidth / 2;
+    const targetY = (top + bottom) / 2;
+    animatePan(translateX + (targetX - fx), translateY + (targetY - fy));
+}
 
-    if (activeHotspot === target) {
-        // Second tap on same person → show info panel
-        infoName.textContent = `${s.name}   ${s.nameEn}`;
-        infoYears.textContent = s.years;
-        infoDesc.textContent = s.desc;
-        infoPanel.classList.remove('hidden');
-        helpHint.style.opacity = '0';
-        // TTS 읽기
-        ttsSpeak(s);
-    } else {
-        // First tap → show tooltip (name)
-        if (activeHotspot) activeHotspot.classList.remove('active');
-        activeHotspot = target;
-        activeHotspot.classList.add('active');
-        tooltip.textContent = `${s.name} (${s.nameEn})`;
-        tooltip.classList.remove('hidden');
-        const touch = e.touches[0];
-        // Position tooltip centered above finger, clamped within screen
-        tooltip.style.left = '0px';
-        tooltip.style.top = '0px';
-        const tw = tooltip.offsetWidth;
-        const th = tooltip.offsetHeight;
-        const vw = window.innerWidth;
-        let left = touch.clientX - tw / 2;
-        if (left < 12) left = 12;
-        if (left + tw > vw - 12) left = vw - tw - 12;
-        let top = touch.clientY - th - 20;
-        if (top < 10) top = touch.clientY + 30;
-        tooltip.style.left = left + 'px';
-        tooltip.style.top = top + 'px';
-        setTimeout(() => tooltip.classList.add('hidden'), 2500);
-    }
+// 부드럽게 화면 이동 (선택적으로 확대 배율도 바꿈)
+let _panRaf = null;
+function animatePan(tx, ty, newScale) {
+    cancelAnimationFrame(_panRaf);
+    const sx = translateX, sy = translateY, ss = scale;
+    const es = newScale || scale;
+    const t0 = performance.now(), dur = 380;
+    const step = (t) => {
+        const k = Math.min(1, (t - t0) / dur);
+        const e = 1 - Math.pow(1 - k, 3);
+        scale = ss + (es - ss) * e;
+        translateX = sx + (tx - sx) * e;
+        translateY = sy + (ty - sy) * e;
+        applyTransform();
+        if (k < 1) _panRaf = requestAnimationFrame(step);
+    };
+    _panRaf = requestAnimationFrame(step);
+}
+
+// 얼굴로 날아가기: 얼굴이 적당한 크기로 보이게 확대하고 가운데로
+function flyTo(idx) {
+    const s = people[idx];
+    const vr = viewport.getBoundingClientRect();
+    const ry = s.ry || s.r;
+    const target = Math.min(MAX_SCALE, Math.max(scale, 70 / ry));
+    const top = (document.getElementById('app-header').getBoundingClientRect().bottom || 0) + 10;
+    const panelGuess = window.innerHeight * (window.innerWidth <= 768 ? 0.42 : 0.3);
+    const cyScreen = (top + window.innerHeight - panelGuess) / 2 - vr.top;
+    animatePan(vr.width / 2 - s.cx * target, cyScreen - s.cy * target, target);
+}
+
+function onTouchHotspot(e) {
+    // 탭은 click 이벤트(onHotspotClick)가 처리함. 얼굴 위에서 시작한 끌기·핀치도 그대로 되도록 막지 않음.
 }
 
 // ===== 정보 패널 닫기 =====
@@ -501,23 +540,32 @@ viewport.addEventListener('touchmove', (e) => {
     }
 }, { passive: false });
 
-viewport.addEventListener('touchend', (e) => {
-    // Single quick tap on empty area → close info panel & deselect
-    if (!touchMoved && e.touches.length === 0) {
-        const elapsed = Date.now() - touchStartTime;
-        if (elapsed < 300) {
-            if (infoPanel && !infoPanel.classList.contains('hidden')) {
-                infoPanel.classList.add('hidden');
-            }
-            if (activeHotspot) {
-                activeHotspot.classList.remove('active');
-                activeHotspot = null;
-            }
-            tooltip.classList.add('hidden');
-        }
-    }
+viewport.addEventListener('touchend', () => {
     isDragging = false;
 });
+
+// 손가락·마우스 종류 기억 (가까운 얼굴 보정 범위에 씀)
+let lastPointerType = 'mouse';
+viewport.addEventListener('pointerdown', (e) => { lastPointerType = e.pointerType || 'mouse'; }, true);
+
+// 누른 곳 가까이에 있는 얼굴 찾기 (화면 픽셀 기준 tol 안)
+function nearestHotspot(clientX, clientY, tol) {
+    const vr = viewport.getBoundingClientRect();
+    const px = (clientX - vr.left - translateX) / scale;
+    const py = (clientY - vr.top - translateY) / scale;
+    let best = -1, bestGap = Infinity;
+    people.forEach((s, i) => {
+        const rx = s.rx || s.r, ry = s.ry || s.r;
+        const a = -(s.rot || 0) * Math.PI / 180;
+        const dx0 = px - s.cx, dy0 = py - s.cy;
+        const dx = dx0 * Math.cos(a) - dy0 * Math.sin(a);
+        const dy = dx0 * Math.sin(a) + dy0 * Math.cos(a);
+        const d = Math.hypot(dx / rx, dy / ry);
+        const gap = Math.max(0, d - 1) * Math.min(rx, ry) * scale;  // 타원 가장자리까지 대략의 화면 거리
+        if (gap < bestGap) { bestGap = gap; best = i; }
+    });
+    return bestGap <= tol ? best : -1;
+}
 
 function getTouchDist(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
@@ -572,6 +620,14 @@ setTimeout(() => {
 viewport.addEventListener('click', (e) => {
     if (mouseMoved) return; // ignore clicks after drag
     if (!e.target.classList.contains('hotspot')) {
+        // 얼굴을 살짝 빗나가게 눌렀으면 가장 가까운 얼굴로 보정
+        const near = nearestHotspot(e.clientX, e.clientY, lastPointerType === 'mouse' ? 8 : 22);
+        if (near >= 0) {
+            if (gameModeActive) gameHandleClick(near, hotspotsContainer.children[near]);
+            else openInfo(near);
+            return;
+        }
+        if (gameModeActive) return;
         infoPanel.classList.add('hidden');
         if (activeHotspot) {
             activeHotspot.classList.remove('active');
@@ -948,4 +1004,58 @@ gameNextBtn.addEventListener('click', () => {
     document.querySelectorAll('.hotspot-correct, .hotspot-wrong, .hotspot-reveal')
         .forEach(el => el.classList.remove('hotspot-correct', 'hotspot-wrong', 'hotspot-reveal'));
     gameNewRound();
+});
+
+
+// ===== 인물 목록 서랍 =====
+const listBtn = document.getElementById('list-toggle');
+const listDrawer = document.getElementById('list-drawer');
+const listBody = document.getElementById('list-body');
+function buildList() {
+    const groups = [
+        ['널리 알려진 인물', people.map((p, i) => [p, i]).filter(([p]) => !p.oldView)],
+        ['해석이 갈리는 인물', people.map((p, i) => [p, i]).filter(([p]) => p.oldView)]
+    ];
+    listBody.innerHTML = '';
+    groups.forEach(([title, items]) => {
+        const h = document.createElement('h3');
+        h.textContent = `${title} (${items.length})`;
+        listBody.appendChild(h);
+        const ul = document.createElement('ul');
+        items.forEach(([p, i]) => {
+            const li = document.createElement('li');
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.innerHTML = `<span class="ln"></span><span class="le"></span>`;
+            b.querySelector('.ln').textContent = p.name;
+            b.querySelector('.le').textContent = p.nameEn;
+            b.addEventListener('click', () => {
+                closeList();
+                flyTo(i);
+                setTimeout(() => openInfo(i), 400);
+            });
+            li.appendChild(b);
+            ul.appendChild(li);
+        });
+        listBody.appendChild(ul);
+    });
+}
+function openList() { listDrawer.classList.remove('hidden'); listBtn.classList.add('on'); }
+function closeList() { if (listDrawer) { listDrawer.classList.add('hidden'); listBtn && listBtn.classList.remove('on'); } }
+listBtn.addEventListener('click', () => listDrawer.classList.contains('hidden') ? openList() : closeList());
+document.getElementById('list-close').addEventListener('click', closeList);
+buildList();
+
+// ===== 얼굴 위치 표시 켜기/끄기 =====
+const facesBtn = document.getElementById('faces-toggle');
+facesBtn.addEventListener('click', () => {
+    const on = hotspotsContainer.classList.toggle('show-all');
+    facesBtn.classList.toggle('on', on);
+});
+
+// ===== Esc 키로 목록·정보 패널 닫기 =====
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!listDrawer.classList.contains('hidden')) { closeList(); return; }
+    if (!infoPanel.classList.contains('hidden')) closePanel.click();
 });

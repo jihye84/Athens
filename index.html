@@ -74,6 +74,16 @@
             <span class="tts-icon">🔊</span>
             <span class="tts-label">음성</span>
         </button>
+        <!-- 인물 목록 서랍 -->
+        <button id="list-toggle" class="tool-btn" title="인물 목록">
+            <span class="tool-icon">📜</span>
+            <span class="tool-label">목록</span>
+        </button>
+        <!-- 얼굴 위치 표시 -->
+        <button id="faces-toggle" class="tool-btn" title="얼굴 위치 표시 켜기/끄기">
+            <span class="tool-icon">◎</span>
+            <span class="tool-label">표시</span>
+        </button>
     </div>
 
     <!-- Zoom Controls -->
@@ -85,12 +95,23 @@
 
     <!-- Help hint -->
     <div id="help-hint">
-        <span class="desktop-hint">🖱️ 스크롤: 확대/축소 &nbsp;|&nbsp; 드래그: 이동 &nbsp;|&nbsp; 롤오버: 이름 &nbsp;|&nbsp; 클릭:
-            상세정보</span>
-        <span class="mobile-hint">👆 탭: 이름 &nbsp;|&nbsp; 다시 탭: 상세정보 &nbsp;|&nbsp; 핀치: 확대/축소 &nbsp;|&nbsp; 드래그: 이동</span>
+        <span class="desktop-hint">🖱️ 스크롤: 확대/축소 &nbsp;|&nbsp; 드래그: 이동 &nbsp;|&nbsp; 얼굴 클릭: 설명 &nbsp;|&nbsp; 📜 목록 &nbsp;|&nbsp; ◎ 얼굴 표시</span>
+        <span class="mobile-hint">👆 얼굴 탭: 설명 &nbsp;|&nbsp; 핀치: 확대/축소 &nbsp;|&nbsp; 드래그: 이동 &nbsp;|&nbsp; 📜 목록 &nbsp;|&nbsp; ◎ 얼굴 표시</span>
     </div>
 
     <!-- Photo Viewport -->
+    <!-- 그림 불러오는 중 -->
+    <div id="loading">그림을 불러오는 중…</div>
+
+    <!-- 인물 목록 서랍 -->
+    <aside id="list-drawer" class="hidden" aria-label="인물 목록">
+        <div id="list-head">
+            <h2>그림 속 인물</h2>
+            <button id="list-close" title="닫기">✕</button>
+        </div>
+        <div id="list-body"></div>
+    </aside>
+
     <div id="viewport">
         <div id="canvas">
             <img id="photo" src="https://upload.wikimedia.org/wikipedia/commons/4/49/%22The_School_of_Athens%22_by_Raffaello_Sanzio_da_Urbino.jpg"
