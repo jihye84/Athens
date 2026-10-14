@@ -715,7 +715,8 @@ function startGame() {
     gameLocked = false;
 
     // 인물 셔플 후 10명 선택
-    gameQueue = shuffleArray(people).slice(0, 10);
+    // 학계에서 이름이 정해지지 않은 옛 해석 인물(oldView)은 문제로 내지 않음
+    gameQueue = shuffleArray(people.filter(p => !p.oldView)).slice(0, 10);
 
     // 설명 모드 UI 숨기기
     infoPanel.classList.add('hidden');
