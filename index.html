@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>아테네 학당 (1509–1511)</title>
+    <meta name="description" content="라파엘로의 벽화 「아테네 학당」 인터랙티브 뷰어. 그림 속 고대 철학자와 학자 23명을 만나 보세요.">
+    <script>
+        // 카카오톡·페이스북·인스타그램·네이버 등 인앱 브라우저에서 열면 기본 브라우저로 다시 열기
+        (function () {
+            var ua = navigator.userAgent || '';
+            var url = location.href;
+            if (/KAKAOTALK/i.test(ua)) {
+                location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+                return;
+            }
+            var inApp = /FBAN|FBAV|FB_IAB|Instagram|NAVER\(inapp|Line\/|DaumApps|everytimeApp|whale\/.*inapp|SamsungBrowser\/.*CrossApp|; wv\)/i.test(ua);
+            if (!inApp) return;
+            if (/Android/i.test(ua)) {
+                location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
+                    '#Intent;scheme=https;package=com.android.chrome;end';
+                return;
+            }
+            // iOS 인앱 브라우저는 강제로 열 수 없으므로 안내를 띄움
+            document.addEventListener('DOMContentLoaded', function () {
+                var box = document.createElement('div');
+                box.id = 'inapp-guide';
+                box.innerHTML = '<p>이 앱 안에서는 일부 기능이 제대로 동작하지 않아요.</p>' +
+                    '<p>오른쪽 아래(또는 위)의 <b>⋯</b> 메뉴에서<br><b>Safari로 열기</b>를 눌러 주세요.</p>' +
+                    '<button type="button">주소 복사하기</button>';
+                box.querySelector('button').onclick = function () {
+                    (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+                        .then(function () { box.querySelector('button').textContent = '복사했어요! Safari에 붙여 넣으세요'; })
+                        .catch(function () { prompt('주소를 복사하세요', url); });
+                };
+                document.body.appendChild(box);
+            });
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Serif+KR:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header id="app-header">
+        <h1>아테네 학당 (1509–1511년)</h1>
+        <p class="subtitle">Scuola di Atene — <em>라파엘로 산치오</em> — 바티칸 사도 궁전, 서명의 방</p>
+    </header>
+
+    <!-- Button Group (Mode Selector + TTS) -->
+    <div id="btn-group">
+        <!-- 모드 선택 버튼: 현재 모드의 반대 버튼만 표시 -->
+        <div id="mode-btns">
+            <button id="mode-game" title="게임 모드로 전환">
+                <span class="mode-icon">🏆</span>
+                <span class="mode-label">게임</span>
+            </button>
+            <button id="mode-desc" title="설명 모드로 전환" class="hidden">
+                <span class="mode-icon">📖</span>
+                <span class="mode-label">설명</span>
+            </button>
+        </div>
+        <!-- 음성 버튼 -->
+        <button id="tts-toggle" title="음성 읽기 ON/OFF" class="tts-on">
+            <span class="tts-icon">🔊</span>
+            <span class="tts-label">음성</span>
+        </button>
+    </div>
+
+    <!-- Zoom Controls -->
+    <div id="zoom-controls">
+        <button id="zoom-in" title="확대">+</button>
+        <button id="zoom-reset" title="원래 크기">⟳</button>
+        <button id="zoom-out" title="축소">−</button>
+    </div>
+
+    <!-- Help hint -->
+    <div id="help-hint">
+        <span class="desktop-hint">🖱️ 스크롤: 확대/축소 &nbsp;|&nbsp; 드래그: 이동 &nbsp;|&nbsp; 롤오버: 이름 &nbsp;|&nbsp; 클릭:
+            상세정보</span>
+        <span class="mobile-hint">👆 탭: 이름 &nbsp;|&nbsp; 다시 탭: 상세정보 &nbsp;|&nbsp; 핀치: 확대/축소 &nbsp;|&nbsp; 드래그: 이동</span>
+    </div>
+
+    <!-- Photo Viewport -->
+    <div id="viewport">
+        <div id="canvas">
+            <img id="photo" src="https://upload.wikimedia.org/wikipedia/commons/4/49/%22The_School_of_Athens%22_by_Raffaello_Sanzio_da_Urbino.jpg"
+                alt="라파엘로, 아테네 학당" draggable="false">
+            <div id="hotspots"></div>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden"></div>
+
+    <!-- Info Panel -->
+    <div id="info-panel" class="hidden">
+        <button id="close-panel" title="닫기">✕</button>
+        <div id="info-content">
+            <h2 id="info-name"></h2>
+            <p id="info-years"></p>
+            <p id="info-desc"></p>
+        </div>
+    </div>
+
+    <!-- Game Panel -->
+    <div id="game-panel" class="hidden">
+        <div id="game-status">
+            <span id="game-round-display">1 / 10</span>
+            <span id="game-score-display">0점</span>
+        </div>
+        <p id="game-prompt">사진에서 이 인물을 찾아 클릭하세요</p>
+        <h2 id="game-name"></h2>
+        <p id="game-feedback" class="hidden"></p>
+        <p id="game-desc" class="hidden"></p>
+        <button id="game-next" class="hidden">다음 문제 ▶</button>
+    </div>
+
+    <!-- Game Result Modal -->
+    <div id="game-result" class="hidden">
+        <div id="game-result-box">
+            <h2 id="game-result-title">게임 종료</h2>
+            <p id="game-result-score"></p>
+            <div id="game-wrong-list"></div>
+            <div id="game-result-buttons">
+                <button id="game-retry">📝 틀린 문제 다시 풀기</button>
+                <button id="game-restart">🔄 새 게임 하기</button>
+                <button id="game-exit">📖 설명 모드로</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
