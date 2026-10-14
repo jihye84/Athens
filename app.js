@@ -267,6 +267,8 @@ function createHotspots() {
         el.style.width = d + 'px';
         el.style.height = d + 'px';
         el.dataset.index = i;
+        // 작은 원(뒤쪽 무리 얼굴)이 큰 원에 가려 눌리지 않도록 작을수록 위에 놓음
+        el.style.zIndex = String(1000 - Math.round(s.r));
 
         el.addEventListener('mouseenter', onHotspotEnter);
         el.addEventListener('mouseleave', onHotspotLeave);
